@@ -1,26 +1,97 @@
 import os
 import docx2txt
 import zipfile
+import re
 from pptx import Presentation
-supportedFormats = ['docx', 'txt', 'pptx']
-filePaths = []
-for root, _, files in os.walk('.\\'):
-    for f in files:
-        if f.split('.')[-1] in supportedFormats:
-            filePaths.append([f'{root}\{f}', f.split('.')[-1]])
-while True:
-    query = input("Search for: ").lower()
+
+CONTEXT_RANGE = 3
+MATCH_OVER_SIMILARITY = 0.65
+
+
+def generate_trigrams(text: str):
+    text = text.strip()
+    text = re.sub(" ", "  ", text)
+    text = f"  {text} "
+    return set([text[i : i + 3] for i in range(len(text) - 2)])
+
+
+def compare_trigrams(trig1: set, trig2: set):
+    count = 0
+    for i in trig1:
+        if i in trig2:
+            count += 1
+    return count / len(trig2)
+
+
+def trigram_search(query, file_text, file):
+    query_trig = generate_trigrams(query)
     results = []
-    for i in filePaths:
-        matches = 0
+    tokens = file_text.split()
+    for j in range(len(tokens)):
+        word_trig = generate_trigrams(tokens[j])
+        similarity = compare_trigrams(query_trig, word_trig)
+        if similarity < MATCH_OVER_SIMILARITY:
+            continue
+        before = ""
+        after = ""
+        for k in range(1, CONTEXT_RANGE):
+            if j - k > 0:
+                before = f"{tokens[j-k]} " + before
+            if j + k < len(tokens):
+                after += f" {tokens[j+k]}"
+        result = {
+            "word": tokens[j],
+            "similarity": similarity,
+            "context": f"{before}{tokens[j]}{after}",
+        }
+        results.append(result)
+    if not results:
+        return
+    results_combined = []
+    for j in set([(i["word"], i["similarity"]) for i in results]):
         contexts = []
+        for result in results:
+            if j[0] == result["word"] and j[1] == result["similarity"]:
+                contexts.append(result["context"])
+        combined = {
+            "file": file,
+            "word": j[0],
+            "similarity": j[1],
+            "contexts": contexts,
+        }
+        results_combined.append(combined)
+    return results_combined
+
+
+def display(results):
+    results = sorted(results, key=lambda k: k["similarity"], reverse=True)
+    for i in results:
+        print(
+            f"{int(round(i['similarity'] * 100))}% match for {i['word']} in [{i['file'][0]}]:"
+        )
+        for j in i["contexts"]:
+            print(f"\t{j}")
+        print("")
+
+
+supportedFormats = ["docx", "txt", "pptx"]
+filePaths = []
+for root, _, files in os.walk(".\\"):
+    for f in files:
+        if f.split(".")[-1] in supportedFormats:
+            filePaths.append([f"{root}\{f}", f.split(".")[-1]])
+while True:
+    matches = 0
+    results = []
+    query = input("Search for: ").lower()
+    for i in filePaths:
         text = ""
-        if i[1] == 'docx':
+        if i[1] == "docx":
             try:
                 text = docx2txt.process(i[0])
             except zipfile.BadZipFile:
                 print(f"Cannot read {i[0]}.")
-        elif i[1] == 'pptx':
+        elif i[1] == "pptx":
             prs = Presentation(i[0])
             for slide in prs.slides:
                 for shape in slide.shapes:
@@ -35,33 +106,11 @@ while True:
                     text = f.read()
                 except UnicodeDecodeError:
                     print(f"Cannot read {i[0]}.")
-        tokens = text.split()
-        for j in range(len(tokens)):
-            if query in tokens[j].lower():
-                matches += 1
-                if tokens[j] not in contexts:
-                    contextRange = 3
-                    before = ""
-                    after = ""
-                    for k in range(1, contextRange):
-                        if j-k > 0:
-                            before = f"{tokens[j-k]} " + before
-                        if j+k < len(tokens):
-                            after += f" {tokens[j+k]}"
-                    contexts.append(f"{before}{tokens[j]}{after}")
-        if matches > 0:
-            result = {
-                "file": i,
-                "matches": matches,
-                "contexts": contexts
-            }
-            results.append(result)
+        file_results = trigram_search(query, text, i)
+        if not file_results:
+            continue
+        results += file_results
     if len(results) == 0:
         print("No results.")
-    results = sorted(results, key=lambda k: k["matches"], reverse=True)
-    for i in results:
-        plural = "" if i['matches'] == 1 else "es"
-        print(f"{i['matches']} match{plural} in [{i['file'][0]}]")
-        for j in i["contexts"]:
-            print(f"\t{j}")
-        print("")
+    else:
+        display(results)

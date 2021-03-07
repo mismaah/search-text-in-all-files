@@ -8,9 +8,17 @@ Before running script, install doc2txt and pptx
 
 Copy script.py inside the folder where you want to search text and run it.
 
-Currently supports docx, txt and pptx file search. Also only works for a single word search terms.
+Currently supports docx, txt and pptx file search.
 
 The script also searches within all child folders recursively.
+
+### Config
+
+The CONTEXT_RANGE constant can be changed to specify how many words ahead or
+beyond the matched word is shown in contexts.
+
+The MATCH_OVER_SIMILARITY determines the lower limit of similarities of the 
+matches results that will be shown.
 
 ### Examples
 
