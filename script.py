@@ -2,6 +2,7 @@ import os
 import docx2txt
 import zipfile
 import re
+import time
 from pptx import Presentation
 
 CONTEXT_RANGE = 3
@@ -84,6 +85,7 @@ while True:
     matches = 0
     results = []
     query = input("Search for: ").lower()
+    start = time.time()
     for i in filePaths:
         text = ""
         if i[1] == "docx":
@@ -114,3 +116,4 @@ while True:
         print("No results.")
     else:
         display(results)
+    print(f"Time elapsed for search: {int((time.time() - start) * 1000)}ms")
