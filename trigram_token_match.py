@@ -4,12 +4,14 @@ import zipfile
 import re
 import time
 from pptx import Presentation
+from pdfminer import high_level
 
 CONTEXT_RANGE = 3
 MATCH_OVER_SIMILARITY = 0.65
 
 
 def generate_trigrams(text: str):
+    text = text.lower()
     text = text.strip()
     text = re.sub(" ", "  ", text)
     text = f"  {text} "
@@ -75,7 +77,7 @@ def display(results):
         print("")
 
 
-supportedFormats = ["docx", "txt", "pptx"]
+supportedFormats = ["docx", "txt", "pptx", "pdf"]
 filePaths = []
 for root, _, files in os.walk(".\\"):
     for f in files:
@@ -87,6 +89,7 @@ while True:
     query = input("Search for: ").lower()
     start = time.time()
     for i in filePaths:
+        print(f"Searching {i[0]}...")
         text = ""
         if i[1] == "docx":
             try:
@@ -102,6 +105,8 @@ while True:
                     for paragraph in shape.text_frame.paragraphs:
                         for run in paragraph.runs:
                             text += run.text
+        elif i[1] == "pdf":
+            text = high_level.extract_text(i[0])
         else:
             with open(i[0], "r", encoding="utf-8") as f:
                 try:
