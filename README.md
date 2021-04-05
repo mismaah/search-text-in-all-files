@@ -2,7 +2,7 @@
 
 Before running scripts, install doc2txt, pptx and pdfminer.
 
-`pip install doc2txt python-pptx pdfminer`
+`pip install doc2txt python-pptx pdfminer.six`
 
 ### Usage
 
